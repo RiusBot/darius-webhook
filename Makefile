@@ -1,0 +1,178 @@
+ENV ?= $(firstword $(MAKECMDGOALS))
+ifeq ($(ENV), prod)
+	CLOUDBUILD = cloudbuild-prod.yml
+	PROJECT_ID = darius-332003
+	APP = app-prod.yml
+else
+	CLOUDBUILD = cloudbuild-dev.yml
+	PROJECT_ID = darius-332003
+	APP = app-dev.yml
+	WORKER_URL = ''
+	CREDENTIALS = darius-332003-6391a8358dec.json
+endif
+
+ifeq ($(words $(MAKECMDGOALS)), 1)
+prod: build deploy
+dev: build deploy
+pilot: build deploy
+else
+dev: nan
+pilot: nan
+prod: nan
+nan:
+	@:
+endif
+
+set-project:
+	gcloud config set project $(PROJECT_ID)
+
+build: set-project build-worker
+	@echo "Build $(PROJECT_ID) sucess"
+
+deploy: set-project deploy-worker
+	@echo "Deploy $(PROJECT_ID) sucess"
+
+# also need to set WORKER_URL
+
+
+build-worker:
+	gcloud builds submit --config worker/$(CLOUDBUILD)
+
+deploy-worker:
+	gcloud beta run deploy tv2tg-worker \
+			--image gcr.io/$(PROJECT_ID)/tv2tg-worker \
+			--region us-central1 \
+			--platform managed \
+			--cpu 1 \
+			--concurrency 1 \
+			--timeout 60m \
+			--memory 1Gi \
+			--max-instances 1 \
+			--update-env-vars='project_id=$(PROJECT_ID)' \
+			--update-env-vars='chat_id=-1001356994242' \
+			--update-env-vars='auth_token=1428340178:AAEMZXJkhSF-K9zdalmXQDnJ9_drCFv_U_Y'
+
+
+#############
+# start local
+#############
+
+start-api-local:
+	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=$(PROJECT_ID) gunicorn api.aiohttp_app:start_api \
+			--bind :8000 \
+			--workers 1 \
+			--threads 8 \
+			--timeout 0 \
+			--worker-class aiohttp.GunicornWebWorker
+
+start-worker-local:
+	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=$(PROJECT_ID) gunicorn worker.flask_app:app \
+			--bind :8001 \
+			--workers 1 \
+			--threads 1 \
+			--timeout 7200
+
+
+###########
+# general
+###########
+.PHONY: test
+
+init: create-env install version
+
+purge: clean uninstall uninstall-env
+
+create-env: check-env env-dependency install-env
+
+install-env:
+	@if ! [ -d $$HOME/.pyenv ]; then \
+		curl https://pyenv.run | bash >/dev/null 2>&1 ; \
+		if ! grep -Fq "pyenv" $$HOME/.bashrc; then\
+			echo "# ===========================" >> $$HOME/.bashrc \
+			echo "# Pyenv configuration        " >> $$HOME/.bashrc \
+			echo "# ===========================" >> $$HOME/.bashrc \
+			echo "export PATH=$$HOME/.pyenv/bin:\$$PATH" >> $$HOME/.bashrc ; \
+			echo "eval \"\$$(pyenv init -)\"" >> $$HOME/.bashrc ; \
+			echo "eval \"\$$(pyenv virtualenv-init -)\"" >> $$HOME/.bashrc ; \
+			echo "# ===========================" >> $$HOME/.bashrc ;\
+		fi \
+	fi
+	@. $$HOME/.bashrc
+	@if ! (python3 -m pip list --disable-pip-version-check | grep pipenv > /dev/null) ; then \
+		python3 -m pip install pipenv ; \
+		if ! grep -Fq "\$$PATH:\$$PYTHON_BIN_PATH" $$HOME/.bashrc; then \
+			echo "export PATH=\$$PATH:\$$PYTHON_BIN_PATH" >> $$HOME/.bashrc ; \
+		fi \
+		if ! grep -Fq "pipenv" $$HOME/.bashrc; then\
+			echo "export PYTHON_BIN_PATH=$$(python3 -m site --user-base)/bin" >> $$HOME/.bashrc ; \
+		fi \
+	fi
+	@. $$HOME/.bashrc
+
+uninstall-env:
+	python3 -m pip uninstall -y pipenv
+	rm -rf $$HOME/.pyenv
+	@echo "==========================="
+	@echo "Need manual clean up bashrc"
+	@echo "==========================="
+	vim $$HOME/.bashrc
+
+env-dependency:
+	sudo apt update
+	sudo apt install -y build-essential libssl-dev zlib1g-dev libbz2-dev \
+	libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+	xz-utils tk-dev libffi-dev liblzma-dev python-openssl git libedit-dev
+
+check-env:
+	@if ! (python3 -m pip list --disable-pip-version-check | grep pipenv > /dev/null) ; then \
+		echo "pipenv not install";\
+	fi
+	@if ! [ -d $$HOME/.pyenv ]; then\
+		echo "pyenv not install";\
+	fi
+	@if ! grep -Fq "pipenv" $$HOME/.bashrc; then\
+		echo "pipenv completion not in bashrc";\
+	fi
+	@if ! grep -Fq "pyenv" $$HOME/.bashrc; then\
+		echo "pyenv not in bashrc";\
+	fi
+	@if ! grep -Fq "\$$PATH:\$$PYTHON_BIN_PATH" $$HOME/.bashrc; then \
+		echo "pipenv PATH not in bashrc";\
+	fi \
+
+install:
+	pipenv install --dev --python 3.7
+
+uninstall:
+	pipenv clean
+	pipenv --rm
+
+shell:
+	pipenv shell
+
+clean:
+	find . -name "*.py[co]" -delete
+	find . -name "*~" -delete
+	find . -name "__pycache__" -delete
+
+style-check: black-check flake8-check
+
+flake8-check:
+	python -m flake8
+
+black-check:
+	python -m black --line-length 88 --target-version=py37 --check ./
+
+black:
+	python -m black --line-length 88 --target-version=py37 ./
+
+test:
+	python -m pytest
+
+doc:
+	python -m pydoc -b
+
+version:
+	pipenv run python --version
+	pipenv run flake8 --version
+	pipenv run pytest --version

@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+worker = {path = "./worker/src", editable = true}
+
+[dev-packages]
+"testfixtures" = "*"
+black = "*"
+"flake8" = "*"
+colorama = "*"
+gunicorn = "*"
+pipdeptree = "*"
+pytest = '*'
+pytest-cov = '*'
+pytest-mock = '*'
+
+[requires]
+python_version = "3.7"
