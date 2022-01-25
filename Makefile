@@ -41,7 +41,7 @@ build-worker:
 deploy-worker:
 	gcloud beta run deploy tv2tg-worker \
 			--image gcr.io/$(PROJECT_ID)/tv2tg-worker \
-			--region us-central1 \
+			--region asia-east1 \
 			--platform managed \
 			--cpu 1 \
 			--concurrency 1 \
@@ -154,6 +154,7 @@ clean:
 	find . -name "*.py[co]" -delete
 	find . -name "*~" -delete
 	find . -name "__pycache__" -delete
+	@find . -name ".ipynb*" -exec rm -rv {} +
 
 style-check: black-check flake8-check
 

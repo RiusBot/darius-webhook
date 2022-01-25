@@ -9,6 +9,7 @@ from flask import Flask, request, jsonify, Response
 
 from worker.config import configure_logging
 from worker.services import validators
+from worker.services.auth import fetch_backend_url_firestore, fetch_secret_token_firestore
 
 
 configure_logging()
@@ -28,7 +29,40 @@ def health_check():
         },
     )
 
+@app.route("/webhook", methods=["POST"])
+@validators.webhook_validator
+def webhook():
+    try:
+        post_data = request.get_json()
+        url = fetch_backend_url_firestore()
+        endpoint = f"{url}/api/v1/execute_webhook_signal"
+        token = fetch_secret_token_firestore()
+        headers = {"Authorization": f"Bearer {token}"}
 
+        post_data["message_timestamp"] = datetime.datetime.now().timestamp()
+        post_data["recieve_timestamp"] = datetime.datetime.now().timestamp()
+        post_data["content"] = ""
+        post_data["channel"] = "WEBHOOK"
+
+        response = requests.post(
+            endpoint,
+            json=post_data,
+            headers=headers
+        )
+        try:
+            result = response.json()
+        except Excetion:
+            result = {'result': response.text}
+
+        logging.info(json.dumps(result, indent=4))
+        return jsonify(result), 200
+    except Exception as e:
+        logging.error(str(e))
+        logging.exception("")
+        # traceback.format_exc()
+        return jsonify({"error_message": str(e)}), 500
+    
+    
 @app.route("/", methods=["POST"])
 @validators.main_validator
 def main():
@@ -46,7 +80,7 @@ def main():
         sentiment_stats = float(sentiment_stats)
         current_price = float(current_price)
         
-        emoji = "🔥" if sentiment_status == "Overheated" else "😭";
+        emoji = "🔥" if sentiment_status == "Overheated" else "😭"
         rolling_apy_text = f"*BTC Rolling APY%:* {rolling_apy:.1f}%\n"
         sentiment_stats_text = f"*Sentiment Stats:* {sentiment_stats:.1f}\n"
         sentiment_status_text = f"*Status:* {emoji}{sentiment_status}\n"
@@ -55,8 +89,8 @@ def main():
         time_text = f"*Time:* {time}\n"
         msg = rolling_apy_text + sentiment_stats_text + sentiment_status_text + current_price_text + action_text + time_text
         
-        chat_id = os.environ["chat_id"]
-        auth_token = os.environ["auth_token"]
+        chat_id = os.environ.get("chat_id")
+        auth_token = os.environ.get("auth_token")
         
         telegram_endpoint = f"https://api.telegram.org/bot{auth_token}/sendMessage"
         params = {
@@ -80,4 +114,4 @@ def main():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()

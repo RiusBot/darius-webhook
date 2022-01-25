@@ -1,3 +1,4 @@
+import logging
 from flask import request, jsonify
 from functools import wraps
 
@@ -34,11 +35,21 @@ def validate_dict_fields(fields, json_payload, errors):
 
 def apply_fields_validators(data, mandatory_fields, string_fields, numeric_fields, dict_fields):
     errors = list()
-    validate_empty_fields(mandatory_fields, data, errors)
-    validate_string_fields(string_fields, data, errors)
-    validate_numeric_fields(numeric_fields, data, errors)
-    validate_dict_fields(dict_fields, data, errors)
+    validate_length_fields(mandatory_fields, data, errors)
+    if not errors:
+        validate_empty_fields(mandatory_fields, data, errors)
+        validate_string_fields(string_fields, data, errors)
+        validate_numeric_fields(numeric_fields, data, errors)
+        validate_dict_fields(dict_fields, data, errors)
     return errors
+
+
+def validate_length_fields(fields, json_payload, errors):
+    for field in fields:
+        if field not in json_payload.keys():
+            continue
+        if len(json_payload.get(field)) > 32:
+            errors.append(f"'{field}' length exceeded")
 
 
 def main_validator(f):
@@ -49,11 +60,38 @@ def main_validator(f):
         numeric_fields = []
         dict_fields = []
         data = request.get_json()
+        if data is None:
+            error_message = "empty request body"
+            logging.error(error_message)
+            return jsonify({"error_messages": error_message}), 400
 
         errors = apply_fields_validators(data, mandatory_fields, string_fields, numeric_fields, dict_fields)
 
         if errors:
-            logging.error(errors)
+            logging.error(str(errors))
+            return jsonify({"error_messages": errors}), 400
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def webhook_validator(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        mandatory_fields = ["symbol", "action", "token"]
+        string_fields = ["symbol", "action", "token"]
+        numeric_fields = []
+        dict_fields = []
+        data = request.get_json()
+        if data is None:
+            error_message = "empty request body"
+            logging.error(error_message)
+            return jsonify({"error_messages": error_message}), 400
+
+        errors = apply_fields_validators(data, mandatory_fields, string_fields, numeric_fields, dict_fields)
+
+        if errors:
+            logging.error(str(errors))
             return jsonify({"error_messages": errors}), 400
         return f(*args, **kwargs)
 

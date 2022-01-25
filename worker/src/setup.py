@@ -13,5 +13,7 @@ setup(
         "urllib3",
         "flask",
         "requests",
+        "firebase_admin==4.4.0",
+        "google-cloud-firestore==2.3.4",
     ]
 )
