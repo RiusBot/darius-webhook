@@ -78,8 +78,8 @@ def main_validator(f):
 def webhook_validator(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        mandatory_fields = ["symbol", "action", "token"]
-        string_fields = ["symbol", "action", "token"]
+        mandatory_fields = ["symbol", "action"]
+        string_fields = ["symbol", "action"]
         numeric_fields = []
         dict_fields = []
         data = request.get_json()

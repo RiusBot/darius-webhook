@@ -29,9 +29,9 @@ def health_check():
         },
     )
 
-@app.route("/webhook", methods=["POST"])
+@app.route("/webhook/<uid>", methods=["POST"])
 @validators.webhook_validator
-def webhook():
+def webhook(uid):
     try:
         post_data = request.get_json()
         url = fetch_backend_url_firestore()
@@ -43,6 +43,7 @@ def webhook():
         post_data["recieve_timestamp"] = datetime.datetime.now().timestamp()
         post_data["content"] = ""
         post_data["channel"] = "WEBHOOK"
+        post_data["uid"] = uid
 
         response = requests.post(
             endpoint,
