@@ -1,0 +1,3 @@
+backend_endpoint:
+    - "https://darius-backend-dot-darius-332003.de.r.appspot.com/api/v1/execute_bot_signal"
+# - "https://darius-backend-dot-darius-prod.de.r.appspot.com/api/v1/execute_bot_signal"

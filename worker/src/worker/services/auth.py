@@ -32,14 +32,6 @@ def fetch_backend_url_firestore():
     return url
 
 
-@functools.lru_cache(maxsize=None)
-def fetch_backend_url_firestore():
-    db = firestore.Client()
-    Secret = db.collection("config").document("backend").get().to_dict()
-    url = Secret['BACKEND_URL']
-    return url
-
-
 def check_client_access(json_payload: dict):
     # TODO HERE
     try:

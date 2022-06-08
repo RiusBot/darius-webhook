@@ -8,7 +8,8 @@ import requests
 from flask import Flask, request, jsonify, Response
 
 from worker.config import configure_logging
-from worker.services import validators
+from worker.services import validators, parse
+from worker.services.execute import send_to_execute
 from worker.services.auth import fetch_backend_url_firestore, fetch_secret_token_firestore
 
 
@@ -63,7 +64,30 @@ def webhook(uid):
         # traceback.format_exc()
         return jsonify({"error_message": str(e)}), 500
     
-    
+
+@app.route("/acdc", methods=["POST"])
+@validators.acdc_validator
+def acdc():
+    try:
+        post_data = request.get_json()
+        if post_data["access_token"] != "35953bf5-f1c1-4017-b243-9246c7565768":
+            raise Exception("invalid access token")
+        post_data.pop('access_token', None)
+
+        info = parse.acdc_parse(post_data)
+        info["message_timestamp"] = datetime.datetime.now().timestamp()
+        info["recieve_timestamp"] = datetime.datetime.now().timestamp()
+        info["channel"] = post_data['strategy']
+        info['content'] = json.dumps(post_data)
+        send_to_execute(info)
+        return jsonify({}), 200
+    except Exception as e:
+        logging.error(str(e))
+        logging.exception("")
+        # traceback.format_exc()
+        return jsonify({"error_message": str(e)}), 500
+
+
 @app.route("/", methods=["POST"])
 @validators.main_validator
 def main():

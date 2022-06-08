@@ -28,6 +28,6 @@ EXPOSE 8080
 
 CMD exec gunicorn worker.flask_app:app \
         --bind :$PORT \
-        --workers 1 \
-        --threads 1 \
+        --workers 10 \
+        --threads 10 \
         --timeout 3600

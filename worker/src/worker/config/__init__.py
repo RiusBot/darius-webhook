@@ -1,6 +1,11 @@
 import os
+import yaml
 import logging
-import logging.config
+
+from worker.services.auth import fetch_backend_url_firestore
+
+
+usingProjectId = os.getenv('project_id', 'local')
 
 
 def get_logging_level():
@@ -27,3 +32,20 @@ def configure_logging():
             "root": {"level": get_logging_level(), "handlers": ["wsgi"]},
         }
     )
+
+
+def read_config():
+    if usingProjectId == "local":
+        yaml_file_path = os.path.join(os.path.dirname(__file__), "config.yaml")
+        with open(yaml_file_path) as yaml_file:
+            config = yaml.safe_load(yaml_file)
+        return config
+    else:
+        return {
+            'backend_endpoint': [
+              f"{fetch_backend_url_firestore()}/api/v1/execute_bot_signal",
+            ]
+        }
+    
+
+config = read_config()

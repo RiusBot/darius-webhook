@@ -48,7 +48,7 @@ def validate_length_fields(fields, json_payload, errors):
     for field in fields:
         if field not in json_payload.keys():
             continue
-        if len(json_payload.get(field)) > 32:
+        if len(json_payload.get(field)) > 36:
             errors.append(f"'{field}' length exceeded")
 
 
@@ -57,6 +57,29 @@ def main_validator(f):
     def wrapper(*args, **kwargs):
         mandatory_fields = ["current_price", "sentiment_stats", "sentiment_status", "rolling_apy", "action"]
         string_fields = ["current_price", "sentiment_stats", "sentiment_status", "rolling_apy", "action"]
+        numeric_fields = []
+        dict_fields = []
+        data = request.get_json()
+        if data is None:
+            error_message = "empty request body"
+            logging.error(error_message)
+            return jsonify({"error_messages": error_message}), 400
+
+        errors = apply_fields_validators(data, mandatory_fields, string_fields, numeric_fields, dict_fields)
+
+        if errors:
+            logging.error(str(errors))
+            return jsonify({"error_messages": errors}), 400
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def acdc_validator(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        mandatory_fields = ["instId", "access_token", "strategy", 'side', 'ordType', 'slTriggerPx', 'tpTriggerPx']
+        string_fields = ["instId", "access_token", "strategy", 'side', 'ordType', 'slTriggerPx', 'tpTriggerPx', 'sz']
         numeric_fields = []
         dict_fields = []
         data = request.get_json()

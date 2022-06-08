@@ -27,13 +27,13 @@ set-project:
 	gcloud config set project $(PROJECT_ID)
 
 build: set-project build-worker
-	@echo "Build $(PROJECT_ID) sucess"
+	@echo "Build $(PROJECT_ID) success"
 
 deploy: set-project deploy-worker
-	@echo "Deploy $(PROJECT_ID) sucess"
+	@echo "Deploy $(PROJECT_ID) success"
 
-# also need to set WORKER_URL
-
+worker: set-project build-worker deploy-worker
+	@echo "Build & Deploy worker to $(PROJECT_ID) success"
 
 build-worker:
 	gcloud builds submit --config worker/$(CLOUDBUILD)
@@ -44,8 +44,8 @@ deploy-worker:
 			--region asia-east1 \
 			--platform managed \
 			--cpu 1 \
-			--concurrency 1 \
-			--timeout 60m \
+			--concurrency 10 \
+			--timeout 10s \
 			--memory 1Gi \
 			--max-instances 1 \
 			--update-env-vars='project_id=$(PROJECT_ID)' \
@@ -58,7 +58,7 @@ deploy-worker:
 #############
 
 start-api-local:
-	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=$(PROJECT_ID) gunicorn api.aiohttp_app:start_api \
+	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=local gunicorn api.aiohttp_app:start_api \
 			--bind :8000 \
 			--workers 1 \
 			--threads 8 \
@@ -66,7 +66,7 @@ start-api-local:
 			--worker-class aiohttp.GunicornWebWorker
 
 start-worker-local:
-	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=$(PROJECT_ID) gunicorn worker.flask_app:app \
+	GOOGLE_APPLICATION_CREDENTIALS=$(CREDENTIALS) project_id=local gunicorn worker.flask_app:app \
 			--bind :8001 \
 			--workers 1 \
 			--threads 1 \
