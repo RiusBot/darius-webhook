@@ -7,3 +7,5 @@ Tradingview alert to Telegram
 * add database
 * add random access_token
 * add random path
+---
+* add dashboards
