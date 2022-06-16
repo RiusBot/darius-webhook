@@ -1,4 +1,4 @@
-# TV2TG
+# darius-webhook
 
 Tradingview alert to Telegram
 
